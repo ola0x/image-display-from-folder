@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Gallery</title>
+    <style>
+        img.lazy {
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image Gallery</h1>
+    <div id="image-gallery">
+        {% for image in images %}
+        <img data-src="{{ url_for('static', filename='thumbnails/' + image) }}" alt="{{ image }}" class="lazy" style="width: 200px; height: auto;">
+        {% endfor %}
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            let lazyImages = [].slice.call(document.querySelectorAll('img.lazy'));
+            let active = false;
+
+            const lazyLoad = function() {
+                if (active === false) {
+                    active = true;
+
+                    setTimeout(function() {
+                        lazyImages.forEach(function(lazyImage) {
+                            if ((lazyImage.getBoundingClientRect().top <= window.innerHeight && lazyImage.getBoundingClientRect().bottom >= 0) && getComputedStyle(lazyImage).display !== 'none') {
+                                lazyImage.src = lazyImage.dataset.src;
+                                lazyImage.classList.remove('lazy');
+
+                                lazyImages = lazyImages.filter(function(image) {
+                                    return image !== lazyImage;
+                                });
+
+                                if (lazyImages.length === 0) {
+                                    document.removeEventListener('scroll', lazyLoad);
+                                    window.removeEventListener('resize', lazyLoad);
+                                    window.removeEventListener('orientationchange', lazyLoad);
+                                }
+                            }
+                        });
+
+                        active = false;
+                    }, 200);
+                }
+            };
+
+            document.addEventListener('scroll', lazyLoad);
+            window.addEventListener('resize', lazyLoad);
+            window.addEventListener('orientationchange', lazyLoad);
+        });
+    </script>
+</body>
+</html>
