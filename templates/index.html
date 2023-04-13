@@ -8,51 +8,157 @@
         img.lazy {
             opacity: 0;
         }
+        #tag-options {
+            position: fixed;
+            top: 0;
+            right: 0;
+            padding: 1em;
+            background-color: white;
+            border-left: 1px solid #ccc;
+            border-bottom: 1px solid #ccc;
+        }
+        .tag1-border {
+        border: 3px solid red;
+        }
+        .tag2-border {
+            border: 3px solid blue;
+        }
+        .tag3-border {
+            border: 3px solid green;
+        }
+    </style>
+    <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script> -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lazysizes/5.3.0/lazysizes.min.js"></script>
+    <style>
+        .selected {
+            border: 3px solid #f00;
+        }
     </style>
 </head>
 <body>
     <h1>Image Gallery</h1>
+    <div id="tag-options">
+        <label for="tag-select">Select a tag:</label>
+        <select id="tag-select">
+            <option value="" disabled selected>Choose a tag</option>
+            {% for tag in tags %}
+            <option value="{{ tag }}">{{ tag }}</option>
+            {% endfor %}
+        </select>
+        <button id="save-tags">Save Tags</button>
+    </div>
+    <div id="saved-tags">
+        <h3>Saved Tags:</h3>
+        <ul>
+            {% for image, tag in saved_tags.items() %}
+            <li>{{ image }}: {{ tag }}</li>
+            {% endfor %}
+        </ul>
+    </div>
     <div id="image-gallery">
         {% for image in images %}
-        <img data-src="{{ url_for('static', filename='thumbnails/' + image) }}" alt="{{ image }}" class="lazy" style="width: 200px; height: auto;">
+        <div>
+            <img data-src="{{ url_for('static', filename='thumbnails/' + image) }}" alt="{{ image }}" class="lazyload" style="width: 200px; height: auto;" onclick="toggleImageSelection('{{ image }}', this)">
+        </div>
         {% endfor %}
     </div>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            let lazyImages = [].slice.call(document.querySelectorAll('img.lazy'));
-            let active = false;
+        document.addEventListener("DOMContentLoaded", function() {
+            var lazyImages = [].slice.call(document.querySelectorAll("img.lazy"));
 
-            const lazyLoad = function() {
-                if (active === false) {
-                    active = true;
+            if ("IntersectionObserver" in window) {
+                let lazyImageObserver = new IntersectionObserver(function(entries, observer) {
+                    entries.forEach(function(entry) {
+                        if (entry.isIntersecting) {
+                            let lazyImage = entry.target;
+                            lazyImage.src = lazyImage.dataset.src;
+                            lazyImage.classList.remove("lazy");
+                            lazyImageObserver.unobserve(lazyImage);
+                        }
+                    });
+                });
 
-                    setTimeout(function() {
-                        lazyImages.forEach(function(lazyImage) {
-                            if ((lazyImage.getBoundingClientRect().top <= window.innerHeight && lazyImage.getBoundingClientRect().bottom >= 0) && getComputedStyle(lazyImage).display !== 'none') {
-                                lazyImage.src = lazyImage.dataset.src;
-                                lazyImage.classList.remove('lazy');
-
-                                lazyImages = lazyImages.filter(function(image) {
-                                    return image !== lazyImage;
-                                });
-
-                                if (lazyImages.length === 0) {
-                                    document.removeEventListener('scroll', lazyLoad);
-                                    window.removeEventListener('resize', lazyLoad);
-                                    window.removeEventListener('orientationchange', lazyLoad);
-                                }
-                            }
-                        });
-
-                        active = false;
-                    }, 200);
-                }
-            };
-
-            document.addEventListener('scroll', lazyLoad);
-            window.addEventListener('resize', lazyLoad);
-            window.addEventListener('orientationchange', lazyLoad);
+                lazyImages.forEach(function(lazyImage) {
+                    lazyImageObserver.observe(lazyImage);
+                });
+            } else {
+                // Fallback for browsers without IntersectionObserver
+                lazyImages.forEach(function(lazyImage) {
+                    lazyImage.src = lazyImage.dataset.src;
+                    lazyImage.classList.remove("lazy");
+                });
+            }
         });
+        var selectedImages = {};
+        function toggleImageSelection(imageName, imgElement) {
+            var selectedTag = $("#tag-select").val();
+            if (selectedTag === "") {
+                alert("Please select a tag before clicking an image.");
+                return;
+            }
+
+            if (selectedImages.hasOwnProperty(imageName)) {
+                var currentTags = selectedImages[imageName].split(', ');
+                var tagIndex = currentTags.indexOf(selectedTag);
+                
+                if (tagIndex > -1) {
+                    currentTags.splice(tagIndex, 1);
+                } else {
+                    currentTags.push(selectedTag);
+                }
+
+                if (currentTags.length === 0) {
+                    delete selectedImages[imageName];
+                } else {
+                    selectedImages[imageName] = currentTags.join(', ');
+                }
+            } else {
+                selectedImages[imageName] = selectedTag;
+            }
+
+            // Update the border color
+            $(imgElement).removeClass("tag1-border tag2-border tag3-border"); // Replace with your actual tag names
+            $(imgElement).addClass(selectedTag + "-border");
+        }
+    //     function toggleImageSelection(imageName, imgElement) {
+    //     var selectedTag = $("#tag-select").val();
+    //     if (selectedTag === "") {
+    //         alert("Please select a tag before clicking an image.");
+    //         return;
+    //     }
+
+    //     if (selectedImages.hasOwnProperty(imageName)) {
+    //         if (selectedImages[imageName] === selectedTag) {
+    //             delete selectedImages[imageName];
+    //             $(imgElement).removeClass(selectedTag + "-border");
+    //         } else {
+    //             selectedImages[imageName] = selectedTag;
+    //             $(imgElement).removeClass("tag1-border tag2-border tag3-border"); // Replace with your actual tag names
+    //             $(imgElement).addClass(selectedTag + "-border");
+    //         }
+    //     } else {
+    //         selectedImages[imageName] = selectedTag;
+    //         $(imgElement).addClass(selectedTag + "-border");
+    //     }
+    // }
+        $("#tag-select").on("change", function() {
+            var selectedTag = $(this).val();
+            for (var imageName in selectedImages) {
+                selectedImages[imageName] = selectedTag;
+            }
+        });
+
+        $("#save-tags").on("click", function() {
+        if (Object.keys(selectedImages).length > 0) {
+            $.post("/save_tags", {tags: JSON.stringify(selectedImages)}, function(data) {
+                console.log(data.message);
+                alert("Tags have been saved.");
+            });
+        } else {
+            alert("No images selected.");
+        }
+    });
     </script>
 </body>
 </html>
